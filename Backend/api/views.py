@@ -1,22 +1,27 @@
-from rest_framework import viewsets, permissions
-from .models import Request, Message
-from .serializers import UserSerializer, RequestSerializer, MessageSerializer
-from django.contrib.auth.models import User
+from rest_framework import generics
+from rest_framework.response import Response
+from django.contrib.auth import authenticate
+from .serializers import RegistrationSerializer, LoginSerializer
+from .models import *
+from .serializers import *
 
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class RegistrationView(generics.CreateAPIView):
+    serializer_class = RegistrationSerializer
 
-class RequestViewSet(viewsets.ModelViewSet):
-    queryset = Request.objects.all()
-    serializer_class = RequestSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class LoginView(generics.GenericAPIView):
+    serializer_class = LoginSerializer
 
-    def perform_create(self, serializer):
-        serializer.save(sender=self.request.user)
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        username = serializer.validated_data['username']
+        password = serializer.validated_data['password']
+        user = authenticate(username=username, password=password)
 
-class MessageViewSet(viewsets.ModelViewSet):
-    queryset = Message.objects.all()
-    serializer_class = MessageSerializer
-    permission_classes = [permissions.IsAuthenticated]
+        if user is not None:
+            return Response({'message': 'Login successful', 'username': user.username})
+        return Response({'message': 'Invalid credentials'}, status=400)
+    
+class ProfileListView(generics.ListAPIView):
+    queryset = Profile.objects.all()
+    serializer_class = ProfileSerializer
