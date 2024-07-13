@@ -20,6 +20,10 @@ const Login = () => {
 
       // Handle successful login (e.g., save token, redirect)
       console.log('Login successful:', response.data);
+      localStorage.setItem('token', response.data.access);
+      localStorage.setItem('refreshToken', response.data.refresh);
+      localStorage.setItem('username', response.data.username);
+
       // Redirect to home component
       navigate('/home');
     } catch (err) {

@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const Home = () => {
   const [profiles, setProfiles] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [newMessage, setNewMessage] = useState('');
-  const [pendingConnections, setPendingConnections] = useState([]);
   const [connections, setConnections] = useState([]);
 
   useEffect(() => {
@@ -18,22 +17,40 @@ const Home = () => {
       }
     };
 
+    const fetchConnections = async () => {
+      try {
+        const response = await axios.get('http://127.0.0.1:8000/api/accounts/interests/', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        setConnections(response.data);
+      } catch (err) {
+        console.error('Error fetching connections:', err);
+      }
+    };
+
     fetchProfiles();
+    fetchConnections();
   }, []);
 
-  const handleConnect = (profile) => {
-    // Handle connect logic here
-    console.log('Connect with:', profile);
-  };
-
-  const handleAccept = (profile) => {
-    // Handle accept logic here
-    console.log('Accept:', profile);
-  };
-
-  const handleReject = (profile) => {
-    // Handle reject logic here
-    console.log('Reject:', profile);
+  const handleSendInterest = async (profile) => {
+    try {
+      const response = await axios.post(
+        'http://127.0.0.1:8000/api/accounts/interests/',
+        { recipient: profile.user.id },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+      console.log('Interest sent:', response.data);
+      // Optionally, update UI or show a success message
+    } catch (err) {
+      console.error('Error sending interest:', err);
+      // Handle error in UI
+    }
   };
 
   const handleChatClick = (chat) => {
@@ -56,11 +73,8 @@ const Home = () => {
     setNewMessage('');
   };
 
-  const getInitials = (name) => {
-    const names = name.split(' ');
-    const initials = names.map((n) => n[0]).join('');
-    return initials;
-  };
+  const generateAvatarUrl = (seed) =>
+    `https://api.dicebear.com/9.x/micah/svg?seed=${seed}`;
 
   return (
     <div className="min-h-screen bg-gray-900 flex">
@@ -69,18 +83,21 @@ const Home = () => {
         <h2 className="text-white text-2xl mb-4">Profiles</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {profiles.map((profile) => (
-            <div key={profile.user.id} className="bg-gray-800 p-4 rounded-lg text-center">
-              {profile.image ? (
-                <img src={profile.image} alt={profile.user.username} className="w-12 h-12 rounded-full mx-auto mb-2" />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-gray-600 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-xl text-white">{getInitials(profile.user.username)}</span>
-                </div>
-              )}
-              <h3 className="text-white text-lg">{profile.user.username}</h3>
+            <div
+              key={profile.id}
+              className="bg-gray-800 p-4 rounded-lg text-center"
+            >
+              <div className="w-12 h-12 rounded-full bg-gray-600 flex items-center justify-center mx-auto mb-2">
+                <img
+                  src={generateAvatarUrl(`${profile.username}`)}
+                  alt={profile.username}
+                  className="w-12 h-12 rounded-full object-cover"
+                />
+              </div>
+              <h3 className="text-white text-lg">{profile.username}</h3>
               <button
                 className="mt-2 px-4 py-2 bg-blue-500 text-white rounded"
-                onClick={() => handleConnect(profile)}
+                onClick={() => handleSendInterest(profile)}
               >
                 Connect
               </button>
@@ -102,7 +119,12 @@ const Home = () => {
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12H3m0 0L6 9m-3 3l3 3" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M15 12H3m0 0L6 9m-3 3l3 3"
+                  />
                 </svg>
               </button>
               <h2 className="text-white text-2xl">{selectedChat.name}</h2>
@@ -111,7 +133,9 @@ const Home = () => {
               {selectedChat.messages.map((message, index) => (
                 <div
                   key={index}
-                  className={`mb-2 flex ${message.sender === 'me' ? 'justify-end' : 'justify-start'}`}
+                  className={`mb-2 flex ${
+                    message.sender === 'me' ? 'justify-end' : 'justify-start'
+                  }`}
                 >
                   <div
                     className={`p-2 rounded-lg text-white ${
@@ -131,37 +155,16 @@ const Home = () => {
                 className="flex-1 p-2 border border-gray-600 rounded"
                 placeholder="Type a message..."
               />
-              <button type="submit" className="ml-2 px-4 py-2 bg-blue-500 text-white rounded">
+              <button
+                type="submit"
+                className="ml-2 px-4 py-2 bg-blue-500 text-white rounded"
+              >
                 Send
               </button>
             </form>
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Pending Connections */}
-            {pendingConnections.map((profile) => (
-              <div key={profile.id} className="bg-gray-800 p-4 rounded-lg">
-                <div className="flex justify-between">
-                  <h3 className="text-white text-lg">{profile.name}</h3>
-                  <div>
-                    <button
-                      onClick={() => handleAccept(profile)}
-                      className="mr-2 px-2 py-1 bg-green-500 text-white rounded"
-                    >
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => handleReject(profile)}
-                      className="px-2 py-1 bg-red-500 text-white rounded"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Accepted Connections */}
             {connections.map((chat) => (
               <div
                 key={chat.id}

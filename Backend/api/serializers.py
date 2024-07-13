@@ -22,10 +22,12 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'email']
-
-class ProfileSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+        
+        
+class InterestSerializer(serializers.ModelSerializer):
+    sender_username = serializers.ReadOnlyField(source='sender.username')
+    recipient_username = serializers.ReadOnlyField(source='recipient.username')
 
     class Meta:
-        model = Profile
-        fields = ['user', 'image']
+        model = Interest
+        fields = ['id', 'sender', 'recipient', 'sender_username', 'recipient_username', 'message', 'is_accepted', 'timestamp']
