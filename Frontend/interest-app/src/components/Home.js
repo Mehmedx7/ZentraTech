@@ -1,76 +1,109 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import ChatComponent from './ChatComponent';
 
 const Home = () => {
   const [profiles, setProfiles] = useState([]);
-  const [selectedChat, setSelectedChat] = useState(null);
-  const [newMessage, setNewMessage] = useState('');
-  const [connections, setConnections] = useState([]);
+  const [receivedInterests, setReceivedInterests] = useState([]);
+  const [acceptedInterest, setAcceptedInterest] = useState(null); // Track accepted interest
 
   useEffect(() => {
     const fetchProfiles = async () => {
       try {
-        const response = await axios.get('http://127.0.0.1:8000/api/accounts/profiles/');
+        const response = await axios.get('http://127.0.0.1:8000/api/users/', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
         setProfiles(response.data);
       } catch (err) {
         console.error('Error fetching profiles:', err);
       }
     };
 
-    const fetchConnections = async () => {
+    const fetchReceivedInterests = async () => {
       try {
-        const response = await axios.get('http://127.0.0.1:8000/api/accounts/interests/', {
+        const response = await axios.get('http://127.0.0.1:8000/api/interests/', {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
           },
         });
-        setConnections(response.data);
+        setReceivedInterests(response.data);
       } catch (err) {
-        console.error('Error fetching connections:', err);
+        console.error('Error fetching received interests:', err);
       }
     };
 
+    // Check local storage for accepted interest ID
+    const storedAcceptedInterest = localStorage.getItem('acceptedInterest');
+    if (storedAcceptedInterest) {
+      setAcceptedInterest(parseInt(storedAcceptedInterest));
+    }
+
     fetchProfiles();
-    fetchConnections();
+    fetchReceivedInterests();
   }, []);
 
-  const handleSendInterest = async (profile) => {
+  const handleSendInterest = async (profileId) => {
     try {
       const response = await axios.post(
-        'http://127.0.0.1:8000/api/accounts/interests/',
-        { recipient: profile.user.id },
+        'http://127.0.0.1:8000/api/interests/',
+        {
+          receiver: profileId,
+          message: 'I am interested in connecting with you!'
+        },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
           },
         }
       );
-      console.log('Interest sent:', response.data);
-      // Optionally, update UI or show a success message
+      console.log('Interest sent successfully:', response.data);
+      // Optionally update connections or notify the user
     } catch (err) {
-      console.error('Error sending interest:', err);
-      // Handle error in UI
+      console.error('Error sending interest:', err.response?.data);
+      // Handle error (e.g., show error message to user)
     }
   };
 
-  const handleChatClick = (chat) => {
-    setSelectedChat(chat);
+  const handleAcceptInterest = async (interestId) => {
+    try {
+      const response = await axios.patch(
+        `http://127.0.0.1:8000/api/interests/${interestId}/`,
+        { status: 'accepted' },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+      console.log('Interest accepted successfully:', response.data);
+      localStorage.setItem('acceptedInterest', interestId); // Store accepted interest ID in local storage
+      setAcceptedInterest(interestId); // Set the accepted interest ID
+      // Optionally update UI or notify the user
+    } catch (err) {
+      console.error('Error accepting interest:', err.response?.data);
+      // Handle error (e.g., show error message to user)
+    }
   };
 
-  const handleBack = () => {
-    setSelectedChat(null);
-  };
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (newMessage.trim() === '') return;
-
-    const updatedMessages = [
-      ...selectedChat.messages,
-      { sender: 'me', text: newMessage },
-    ];
-    setSelectedChat({ ...selectedChat, messages: updatedMessages });
-    setNewMessage('');
+  const handleRejectInterest = async (interestId) => {
+    try {
+      const response = await axios.patch(
+        `http://127.0.0.1:8000/api/interests/${interestId}/`,
+        { status: 'rejected' },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+      console.log('Interest rejected successfully:', response.data);
+      // Optionally update UI or notify the user
+    } catch (err) {
+      console.error('Error rejecting interest:', err.response?.data);
+      // Handle error (e.g., show error message to user)
+    }
   };
 
   const generateAvatarUrl = (seed) =>
@@ -97,7 +130,7 @@ const Home = () => {
               <h3 className="text-white text-lg">{profile.username}</h3>
               <button
                 className="mt-2 px-4 py-2 bg-blue-500 text-white rounded"
-                onClick={() => handleSendInterest(profile)}
+                onClick={() => handleSendInterest(profile.id)}
               >
                 Connect
               </button>
@@ -108,75 +141,50 @@ const Home = () => {
 
       {/* Right Section */}
       <div className="w-full lg:w-2/5 bg-gray-900 p-4 overflow-y-auto h-screen">
-        {selectedChat ? (
-          <div className="flex flex-col h-full">
-            <div className="flex items-center mb-4">
-              <button onClick={handleBack} className="text-white mr-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="w-6 h-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M15 12H3m0 0L6 9m-3 3l3 3"
-                  />
-                </svg>
-              </button>
-              <h2 className="text-white text-2xl">{selectedChat.name}</h2>
-            </div>
-            <div className="flex-1 overflow-y-auto mb-4">
-              {selectedChat.messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`mb-2 flex ${
-                    message.sender === 'me' ? 'justify-end' : 'justify-start'
-                  }`}
-                >
-                  <div
-                    className={`p-2 rounded-lg text-white ${
-                      message.sender === 'me' ? 'bg-blue-500' : 'bg-gray-700'
-                    }`}
-                  >
-                    {message.text}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <form onSubmit={handleSendMessage} className="flex">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                className="flex-1 p-2 border border-gray-600 rounded"
-                placeholder="Type a message..."
-              />
-              <button
-                type="submit"
-                className="ml-2 px-4 py-2 bg-blue-500 text-white rounded"
-              >
-                Send
-              </button>
-            </form>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {connections.map((chat) => (
-              <div
-                key={chat.id}
-                className="bg-gray-800 p-4 rounded-lg cursor-pointer"
-                onClick={() => handleChatClick(chat)}
-              >
-                <h3 className="text-white text-lg">{chat.name}</h3>
+        <h2 className="text-white text-2xl mb-4">Received Interests</h2>
+        <div className="space-y-4">
+          {receivedInterests.map((interest) => (
+            <div
+              key={interest.id}
+              className="bg-gray-800 p-4 rounded-lg cursor-pointer flex items-center justify-between"
+            >
+              <div>
+                <h3 className="text-white text-lg">{interest.sender.username}</h3>
+                <p className="text-gray-400">{interest.message}</p>
               </div>
-            ))}
-          </div>
-        )}
+              {interest.status === 'pending' && (
+                <div>
+                  <button
+                    className="px-4 py-2 bg-green-500 text-white rounded mr-2"
+                    onClick={() => handleAcceptInterest(interest.id)}
+                  >
+                    Accept
+                  </button>
+                  <button
+                    className="px-4 py-2 bg-red-500 text-white rounded"
+                    onClick={() => handleRejectInterest(interest.id)}
+                  >
+                    Reject
+                  </button>
+                </div>
+              )}
+              {interest.status === 'accepted' && (
+                <p className="text-green-500">Accepted</p>
+              )}
+              {interest.status === 'rejected' && (
+                <p className="text-red-500">Rejected</p>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
+
+      {/* Chat Section */}
+        <div className="w-full lg:w-2/5 bg-gray-900 p-4 overflow-y-auto h-screen">
+          <h2 className="text-white text-2xl mb-4">Chat</h2>
+          <ChatComponent chatRoomId={acceptedInterest} />
+        </div>
+
     </div>
   );
 };

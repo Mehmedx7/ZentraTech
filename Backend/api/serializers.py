@@ -18,16 +18,22 @@ class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
+
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email']
-        
-        
-class InterestSerializer(serializers.ModelSerializer):
-    sender_username = serializers.ReadOnlyField(source='sender.username')
-    recipient_username = serializers.ReadOnlyField(source='recipient.username')
+        fields = ['id', 'username']
 
+class InterestSerializer(serializers.ModelSerializer):
     class Meta:
         model = Interest
-        fields = ['id', 'sender', 'recipient', 'sender_username', 'recipient_username', 'message', 'is_accepted', 'timestamp']
+        fields = ['id', 'sender', 'receiver', 'message', 'status', 'created_at']
+        read_only_fields = ['id', 'sender', 'created_at']
+
+class MessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = ['sender', 'receiver', 'interest', 'content']
+        extra_kwargs = {
+            'sender': {'read_only': True},
+        }
